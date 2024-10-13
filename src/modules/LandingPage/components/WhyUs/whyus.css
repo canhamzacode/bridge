@@ -1,0 +1,7 @@
+.whyus__text {
+    background: linear-gradient(135deg, #52E5E7 0%, #130CB7 100%);
+    -webkit-background-clip: text; /* For WebKit browsers */
+    -webkit-text-fill-color: transparent; /* Makes the text transparent so background shows through */
+    background-clip: text; /* For other browsers */
+    color: transparent; /* Fallback for non-webkit browsers */
+}
