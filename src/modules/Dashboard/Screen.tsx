@@ -17,7 +17,7 @@ const getStatusClass = (status: string) => {
 
 interface Voucher {
   id: number;
-  amount: string;
+  amount: number;
   status: string;
   date: string;
   redemptionDate?: string;
@@ -31,21 +31,11 @@ const DashboardScreen: React.FC = () => {
 
   useEffect(() => {
     const fetchVouchers = async () => {
-      const mockVouchers: Voucher[] = [
-        { id: 1, amount: '$10', status: 'Redeemed', date: '2023-05-01', redemptionDate: '2023-05-05' },
-        { id: 2, amount: '$10', status: 'Pending', date: '2023-05-10' },
-        { id: 3, amount: '$5', status: 'Redeemed', date: '2023-05-15', redemptionDate: '2023-05-20' },
-      ];
-      setVouchers(mockVouchers);
+      // Fetch vouchers from API or other data source
+      setVouchers([]);
 
-      const mockChartData = [
-        { date: '2023-05-01', balance: 10 },
-        { date: '2023-05-05', balance: 15 },
-        { date: '2023-05-10', balance: 25 },
-        { date: '2023-05-15', balance: 20 },
-        { date: '2023-05-20', balance: 30 },
-      ];
-      setChartData(mockChartData);
+      // Fetch chart data from API or other data source
+      setChartData([]);
     };
 
     fetchVouchers();
@@ -57,12 +47,17 @@ const DashboardScreen: React.FC = () => {
     // Record the transaction on the blockchain
     await recordTransactionOnChain(response.amount, response.currency);
     
+    const amount = Number(response.amount) / 100; // Convert from kobo to Naira
+    
     setTransactionSuccess(true);
-    setTokenBalance(prevBalance => prevBalance + response.amount);
+    setTokenBalance(prevBalance => {
+      const newBalance = prevBalance + amount;
+      return Number(newBalance.toFixed(2)); // Round to 2 decimal places
+    });
     setVouchers(prevVouchers => [
       {
         id: Date.now(),
-        amount: `$${response.amount}`,
+        amount: amount,
         status: 'Pending',
         date: new Date().toLocaleDateString()
       },
@@ -70,7 +65,7 @@ const DashboardScreen: React.FC = () => {
     ]);
     setChartData(prevData => [
       ...prevData,
-      { date: new Date().toLocaleDateString(), balance: tokenBalance + response.amount }
+      { date: new Date().toLocaleDateString(), balance: tokenBalance + amount }
     ]);
     setTimeout(() => setTransactionSuccess(false), 3000);
   };
@@ -87,7 +82,7 @@ const DashboardScreen: React.FC = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-8"
+          className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-grey-400 to-black-600 mb-8"
         >
           Dashboard
         </motion.h1>
@@ -95,36 +90,16 @@ const DashboardScreen: React.FC = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="bg-slate-100 rounded-lg shadow-lg p-6 border border-gray-400"
+            className="bg-slate-200 rounded-lg shadow-lg p-6 border border-gray-300"
           >
             <div className="flex items-center mb-4">
               <FaCoins className="text-yellow-500 text-2xl mr-2" />
               <h2 className="text-xl font-semibold">Token Balance</h2>
             </div>
-            <p className="text-3xl font-bold text-yellow-400">${tokenBalance}</p>
+            <p className="text-3xl font-bold text-yellow-400">${tokenBalance.toFixed(2)}</p>
             <PaystackPayment
               email="user@example.com"
-              amount={1500}
-              reference={`TRX-${new Date().getTime()}`}
-              onSuccess={(response: any) => handlePaymentSuccess(response)}
-              onClose={handlePaymentClose}
-            />
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700"
-          >
-            <div className="flex items-center mb-4">
-              <FaTicketAlt className="text-blue-500 text-2xl mr-2" />
-              <h2 className="text-xl font-semibold">Latest Voucher</h2>
-            </div>
-            <p className="text-3xl font-bold text-blue-400">
-              {vouchers.length > 0 ? vouchers[0].amount : '$0'}
-            </p>
-            <PaystackPayment
-              email="user@example.com"
-              amount={500}
+              amount={10000} // 100 Naira in kobo
               reference={`TRX-${new Date().getTime()}`}
               onSuccess={handlePaymentSuccess}
               onClose={handlePaymentClose}
@@ -133,7 +108,27 @@ const DashboardScreen: React.FC = () => {
 
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700"
+            className="bg-slate-200 rounded-lg shadow-lg p-6 border border-gray-300"
+          >
+            <div className="flex items-center mb-4">
+              <FaTicketAlt className="text-blue-500 text-2xl mr-2" />
+              <h2 className="text-xl font-semibold">Latest Voucher</h2>
+            </div>
+            <p className="text-3xl font-bold text-blue-400">
+              ${vouchers.length > 0 ? vouchers[0].amount.toFixed(2) : '0.00'}
+            </p>
+            <PaystackPayment
+              email="user@example.com"
+              amount={100} // 1 Naira in kobo
+              reference={`TRX-${new Date().getTime()}`}
+              onSuccess={handlePaymentSuccess}
+              onClose={handlePaymentClose}
+            />
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="bg-slate-200 rounded-lg shadow-lg p-6 border border-gray-300"
           >
             <div className="flex items-center mb-4">
               <FaChartLine className="text-green-500 text-2xl mr-2" />
@@ -156,7 +151,7 @@ const DashboardScreen: React.FC = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-green-900 border-l-4 border-green-500 text-green-100 p-4 mb-8 rounded-r"
+            className="bg-slate-200 border-l-4 border-green-500 text-green-100 p-4 mb-8 rounded-r"
             role="alert"
           >
             <p className="font-bold">Success!</p>
@@ -168,7 +163,7 @@ const DashboardScreen: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700"
+          className="bg-slate-200 rounded-lg shadow-lg p-6 border border-gray-300"
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center">
@@ -186,27 +181,27 @@ const DashboardScreen: React.FC = () => {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-gray-700">
+              <thead className="bg-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-300 uppercase tracking-wider">Purchase Date</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-300 uppercase tracking-wider">Voucher ID</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-300 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-300 uppercase tracking-wider">Redemption Date</th>
+                  <th className="px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">Purchase Date</th>
+                  <th className="px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">Voucher ID</th>
+                  <th className="px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">Redemption Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-600">
+              <tbody className="divide-y divide-gray-300">
                 {vouchers.map((voucher) => (
                   <motion.tr
                     key={voucher.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
-                    className="hover:bg-gray-700 transition"
+                    className="hover:bg-gray-100 transition"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">{voucher.date}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{voucher.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{voucher.amount}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">${voucher.amount.toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(voucher.status)}`}>
                         {voucher.status}
