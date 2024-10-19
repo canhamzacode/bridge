@@ -99,7 +99,7 @@ const DashboardScreen: React.FC = () => {
             <p className="text-3xl font-bold text-yellow-400">${tokenBalance.toFixed(2)}</p>
             <PaystackPayment
               email="user@example.com"
-              amount={10000} // 100 Naira in kobo
+              amount={100} // 100 Naira in kobo
               reference={`TRX-${new Date().getTime()}`}
               onSuccess={handlePaymentSuccess}
               onClose={handlePaymentClose}
@@ -201,7 +201,7 @@ const DashboardScreen: React.FC = () => {
                   >
                     <td className="px-6 py-4 whitespace-nowrap">{voucher.date}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{voucher.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">${voucher.amount.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">${voucher.amount ? voucher.amount.toFixed(2) : '0.00'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(voucher.status)}`}>
                         {voucher.status}
