@@ -1,77 +1,74 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import PaystackPayment from '@/components/PaystackPayment';
-import { FaCoins, FaTicketAlt, FaHistory, FaChartLine, FaExchangeAlt, FaBell } from 'react-icons/fa';
-import { motion } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { FaCoins, FaSpinner, FaEnvelope, FaTimes } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
 import { recordTransactionOnChain } from '@/utils/contractInteractions';
-
-const getStatusClass = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'redeemed': return 'text-emerald-600 bg-emerald-100';
-    case 'pending': return 'text-amber-600 bg-amber-100';
-    default: return 'text-gray-600 bg-gray-100';
-  }
-};
-
-interface Voucher {
-  id: number;
-  amount: number;
-  status: string;
-  date: string;
-  redemptionDate?: string;
-}
 
 const DashboardScreen: React.FC = () => {
   const [transactionSuccess, setTransactionSuccess] = useState<boolean>(false);
-  const [vouchers, setVouchers] = useState<Voucher[]>([]);
-  const [tokenBalance, setTokenBalance] = useState<number>(10);
-  const [chartData, setChartData] = useState<{ date: string; balance: number }[]>([]);
+  const [tokenBalance, setTokenBalance] = useState<number>(4);
+  const [isWaiting, setIsWaiting] = useState<boolean>(false);
+  const [countdown, setCountdown] = useState<number>(120);
+  const [email, setEmail] = useState<string>('');
+  const [showNotification, setShowNotification] = useState<boolean>(false);
 
   useEffect(() => {
-    const fetchVouchers = async () => {
-      // Fetch vouchers from API or other data source
-      setVouchers([]);
-
-      // Fetch chart data from API or other data source
-      setChartData([]);
+    const checkWalletConnection = async () => {
+      if (typeof window.ethereum !== 'undefined') {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length > 0) {
+          console.log('Wallet connected');
+        }
+      }
     };
 
-    fetchVouchers();
+    checkWalletConnection();
   }, []);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isWaiting && countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    } else if (countdown === 0) {
+      setIsWaiting(false);
+      setTransactionSuccess(true);
+      setShowNotification(true);
+      setTimeout(() => {
+        setTransactionSuccess(false);
+        setShowNotification(false);
+      }, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [isWaiting, countdown]);
 
   const handlePaymentSuccess = async (response: any) => {
     console.log('Payment successful:', response);
     
-    // Record the transaction on the blockchain
     await recordTransactionOnChain(response.amount, response.currency);
     
-    const amount = Number(response.amount) / 100; // Convert from kobo to Naira
+    const amount = Number(response.amount) / 100;
     
-    setTransactionSuccess(true);
     setTokenBalance(prevBalance => {
       const newBalance = prevBalance + amount;
-      return Number(newBalance.toFixed(2)); // Round to 2 decimal places
+      return Number(newBalance.toFixed(2));
     });
-    setVouchers(prevVouchers => [
-      {
-        id: Date.now(),
-        amount: amount,
-        status: 'Pending',
-        date: new Date().toLocaleDateString()
-      },
-      ...prevVouchers,
-    ]);
-    setChartData(prevData => [
-      ...prevData,
-      { date: new Date().toLocaleDateString(), balance: tokenBalance + amount }
-    ]);
-    setTimeout(() => setTransactionSuccess(false), 3000);
+    setIsWaiting(true);
   };
 
   const handlePaymentClose = () => {
     console.log("Payment process closed.");
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  };
+
+  const handlePayNowClick = () => {
+    // Proceed with payment directly
   };
 
   return (
@@ -87,133 +84,89 @@ const DashboardScreen: React.FC = () => {
           Dashboard
         </motion.h1>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-1 gap-6 mb-8">
           <motion.div
             whileHover={{ scale: 1.05 }}
             className="bg-slate-200 rounded-lg shadow-lg p-6 border border-gray-300"
           >
             <div className="flex items-center mb-4">
               <FaCoins className="text-yellow-500 text-2xl mr-2" />
-              <h2 className="text-xl font-semibold">Token Balance</h2>
+              <h2 className="text-xl font-semibold">Farcaster Account Fee</h2>
             </div>
-            <p className="text-3xl font-bold text-yellow-400">${tokenBalance.toFixed(2)}</p>
-            <PaystackPayment
-              email="user@example.com"
-              amount={100} // 100 Naira in kobo
-              reference={`TRX-${new Date().getTime()}`}
-              onSuccess={handlePaymentSuccess}
-              onClose={handlePaymentClose}
-            />
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="bg-slate-200 rounded-lg shadow-lg p-6 border border-gray-300"
-          >
-            <div className="flex items-center mb-4">
-              <FaTicketAlt className="text-blue-500 text-2xl mr-2" />
-              <h2 className="text-xl font-semibold">Latest Voucher</h2>
+            <p className="text-3xl font-bold text-yellow-400 mb-4">${(tokenBalance || 0).toFixed(2)}</p>
+            <div className="mb-4">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email for Farcaster Login</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FaEnvelope className="text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={handleEmailChange}
+                  placeholder="Enter your email"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
-            <p className="text-3xl font-bold text-blue-400">
-              ${vouchers.length > 0 ? vouchers[0].amount.toFixed(2) : '0.00'}
-            </p>
-            <PaystackPayment
-              email="user@example.com"
-              amount={100} // 1 Naira in kobo
-              reference={`TRX-${new Date().getTime()}`}
-              onSuccess={handlePaymentSuccess}
-              onClose={handlePaymentClose}
-            />
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="bg-slate-200 rounded-lg shadow-lg p-6 border border-gray-300"
-          >
-            <div className="flex items-center mb-4">
-              <FaChartLine className="text-green-500 text-2xl mr-2" />
-              <h2 className="text-xl font-semibold">Balance Trend</h2>
-            </div>
-            <ResponsiveContainer width="100%" height={150}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="date" stroke="#9CA3AF" />
-                <YAxis stroke="#9CA3AF" />
-                <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: 'none' }} />
-                <Line type="monotone" dataKey="balance" stroke="#10B981" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+            <button
+              onClick={handlePayNowClick}
+            >
+              
+        <PaystackPayment
+          email={email}
+          amount={1}
+          reference={`TRX-${new Date().getTime()}`}
+          onSuccess={handlePaymentSuccess}
+          onClose={handlePaymentClose}
+        />
+            </button>
           </motion.div>
         </div>
 
-        {transactionSuccess && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-slate-200 border-l-4 border-green-500 text-green-100 p-4 mb-8 rounded-r"
-            role="alert"
-          >
-            <p className="font-bold">Success!</p>
-            <p>Your payment was processed successfully. Your balance has been updated.</p>
-          </motion.div>
-        )}
+        <AnimatePresence>
+          {isWaiting && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+            >
+              <div className="bg-white rounded-lg p-8 max-w-md w-full text-center">
+                <FaSpinner className="animate-spin text-4xl text-blue-500 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-4">Processing Your Payment</h2>
+                <p className="text-gray-600 mb-4">
+                  Please wait while we confirm your transaction. This may take up to 2 minutes.
+                </p>
+                <p className="text-xl font-semibold">
+                  Time remaining: {Math.floor(countdown / 60)}:{countdown % 60 < 10 ? '0' : ''}{countdown % 60}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-slate-200 rounded-lg shadow-lg p-6 border border-gray-300"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
-              <FaHistory className="text-purple-500 text-2xl mr-2" />
-              <h2 className="text-2xl font-semibold">Voucher History</h2>
-            </div>
-            <div className="flex space-x-2">
-              <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-full transition duration-300 flex items-center">
-                <FaExchangeAlt className="mr-2" /> Exchange
+        <AnimatePresence>
+          {showNotification && (
+            <motion.div
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              className="fixed top-5 right-5 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50"
+            >
+              <h3 className="text-lg font-bold mb-2">Transaction Complete!</h3>
+              <p>Please check your email or Farcaster account to proceed with registration.</p>
+              <button
+                onClick={() => setShowNotification(false)}
+                className="absolute top-2 right-2 text-white hover:text-gray-200"
+              >
+                <FaTimes />
               </button>
-              <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full transition duration-300 flex items-center">
-                <FaBell className="mr-2" /> Notifications
-              </button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">Purchase Date</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">Voucher ID</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">Redemption Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-300">
-                {vouchers.map((voucher) => (
-                  <motion.tr
-                    key={voucher.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="hover:bg-gray-100 transition"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">{voucher.date}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{voucher.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">${voucher.amount ? voucher.amount.toFixed(2) : '0.00'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(voucher.status)}`}>
-                        {voucher.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{voucher.redemptionDate || '-'}</td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </motion.section>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </main>
     </div>
   );

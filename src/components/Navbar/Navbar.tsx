@@ -2,13 +2,15 @@ import { Avatar, Name } from '@coinbase/onchainkit/identity'
 import { ConnectWallet } from '@coinbase/onchainkit/wallet'
 import Image from 'next/image'
 import Link from 'next/link'
-import React from 'react'
+import React, { useState } from 'react'
 
 interface IProps {
     authenticated?: boolean
 }
 
 const Navbar = ({authenticated = false}:IProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <div className='w-full px-4 flex items-center justify-between border-b border-b-[#F5F7FA] py-1 bg-white'>
         <div className='w-full flex items-center justify-between max-w-[1400px] mx-auto'>
@@ -24,7 +26,7 @@ const Navbar = ({authenticated = false}:IProps) => {
                     <Link href="/auth" className='text-primary'>Login</Link>
                     <div className='h-[88px] w-[56px] bg-primary text-white'></div>
                 </div>: <div className='flex items-center gap-4'>
-                    <ConnectWallet>
+                    <ConnectWallet isOpen={isOpen} setIsOpen={setIsOpen}>
                         <Avatar className="h-6 w-6" />
                         <Name />
                     </ConnectWallet>
