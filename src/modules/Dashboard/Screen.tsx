@@ -4,17 +4,19 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import PaystackPayment from '@/components/PaystackPayment';
-import { FaCoins, FaSpinner, FaEnvelope, FaTimes } from 'react-icons/fa';
+import { FaCoins, FaSpinner, FaEnvelope, FaTimes, FaCreditCard, FaBitcoin } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { recordTransactionOnChain } from '@/utils/contractInteractions';
+import { Checkout, CheckoutButton, CheckoutStatus } from '@coinbase/onchainkit/checkout';
+import { LifecycleStatus } from '@coinbase/onchainkit/transaction';
 
 const DashboardScreen: React.FC = () => {
   const [transactionSuccess, setTransactionSuccess] = useState<boolean>(false);
   const [tokenBalance, setTokenBalance] = useState<number>(4);
   const [isWaiting, setIsWaiting] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(120);
-  const [email, setEmail] = useState<string>('');
   const [showNotification, setShowNotification] = useState<boolean>(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'paystack' | 'coinbase' | null>(null);
 
   useEffect(() => {
     const checkWalletConnection = async () => {
@@ -47,11 +49,8 @@ const DashboardScreen: React.FC = () => {
 
   const handlePaymentSuccess = async (response: any) => {
     console.log('Payment successful:', response);
-    
     await recordTransactionOnChain(response.amount, response.currency);
-    
     const amount = Number(response.amount) / 100;
-    
     setTokenBalance(prevBalance => {
       const newBalance = prevBalance + amount;
       return Number(newBalance.toFixed(2));
@@ -61,68 +60,116 @@ const DashboardScreen: React.FC = () => {
 
   const handlePaymentClose = () => {
     console.log("Payment process closed.");
+    setSelectedPaymentMethod(null);
   };
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
+  const statusHandler = async (status: LifecycleStatus) => {
+    const { statusName, statusData } = status;
+    switch (statusName) {
+      case 'success':
+        console.log('Checkout successful:', statusData);
+        break;
+      case 'init':
+      case 'transactionIdle':
+      case 'transactionPending':
+      case 'transactionLegacyExecuted':
+        console.log('Payment status:', statusName);
+        break;
+      case 'error':
+        console.error('Checkout error');
+        break;
+      default:
+        console.log('Checkout initialized');
+    }
   };
 
-  const handlePayNowClick = () => {
-    // Proceed with payment directly
-  };
+  const PaymentOption: React.FC<{
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+    onClick: () => void;
+    selected: boolean;
+  }> = ({ icon, title, description, onClick, selected }) => (
+    <motion.div
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className={`bg-white rounded-lg shadow-md p-6 cursor-pointer ${
+        selected ? 'border-4 border-blue-500' : ''
+      }`}
+      onClick={onClick}
+    >
+      <div className="flex items-center mb-4">
+        {icon}
+        <h3 className="text-xl font-semibold ml-3">{title}</h3>
+      </div>
+      <p className="text-gray-600">{description}</p>
+    </motion.div>
+  );
 
   return (
-    <div className="bg-gradient-to-br from-white to-slate-50 min-h-screen text-slate-950">
-      <Navbar authenticated />
-      <main className="container mx-auto px-4 py-8">
+    <div className="bg-white min-h-screen">
+      <Navbar />
+      <main className="container mx-auto px-4 py-12">
         <motion.h1
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-grey-400 to-black-600 mb-8"
+          className="text-4xl font-bold text-white mb-8 text-center"
         >
-          Dashboard
+          Farcaster Account Dashboard
         </motion.h1>
         
-        <div className="grid md:grid-cols-1 gap-6 mb-8">
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="bg-slate-200 rounded-lg shadow-lg p-6 border border-gray-300"
-          >
-            <div className="flex items-center mb-4">
-              <FaCoins className="text-yellow-500 text-2xl mr-2" />
-              <h2 className="text-xl font-semibold">Farcaster Account Fee</h2>
+        <div className="bg-white rounded-lg shadow-xl p-8 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center">
+              <FaCoins className="text-yellow-500 text-3xl mr-3" />
+              <h2 className="text-2xl font-semibold">Account Balance</h2>
             </div>
-            <p className="text-3xl font-bold text-yellow-400 mb-4">${(tokenBalance || 0).toFixed(2)}</p>
-            <div className="mb-4">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email for Farcaster Login</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaEnvelope className="text-gray-400" />
-                </div>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={handleEmailChange}
-                  placeholder="Enter your email"
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-            <button
-              onClick={handlePayNowClick}
+            <p className="text-4xl font-bold text-blue-600">${(tokenBalance || 0).toFixed(2)}</p>
+          </div>
+          
+          <h3 className="text-xl font-semibold mb-4">Select Payment Method</h3>
+          <div className="grid md:grid-cols-2 gap-6">
+            <PaymentOption
+              icon={<FaCreditCard className="text-blue-500 text-2xl" />}
+              title="Pay with Card"
+              description="Secure payment via Paystack"
+              onClick={() => setSelectedPaymentMethod('paystack')}
+              selected={selectedPaymentMethod === 'paystack'}
+            />
+            <PaymentOption
+              icon={<FaBitcoin className="text-orange-500 text-2xl" />}
+              title="Pay with Crypto"
+              description="Powered by Coinbase"
+              onClick={() => setSelectedPaymentMethod('coinbase')}
+              selected={selectedPaymentMethod === 'coinbase'}
+            />
+          </div>
+
+          {selectedPaymentMethod && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="mt-8"
             >
-              
-        <PaystackPayment
-          email={email}
-          amount={1}
-          reference={`TRX-${new Date().getTime()}`}
-          onSuccess={handlePaymentSuccess}
-          onClose={handlePaymentClose}
-        />
-            </button>
-          </motion.div>
+              {selectedPaymentMethod === 'paystack' && (
+                <PaystackPayment
+                  email="user@example.com" // You might want to get this from user context or remove if not needed
+                  amount={100} // Amount in cents
+                  reference={`TRX-${new Date().getTime()}`}
+                  onSuccess={handlePaymentSuccess}
+                  onClose={handlePaymentClose}
+                />
+              )}
+              {selectedPaymentMethod === 'coinbase' && (
+                <Checkout productId='my-product-id' onStatus={statusHandler}>
+                  <CheckoutButton coinbaseBranded className="w-full py-3 text-lg" />
+                  <CheckoutStatus />
+                </Checkout>
+              )}
+            </motion.div>
+          )}
         </div>
 
         <AnimatePresence>
@@ -156,7 +203,7 @@ const DashboardScreen: React.FC = () => {
               className="fixed top-5 right-5 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50"
             >
               <h3 className="text-lg font-bold mb-2">Transaction Complete!</h3>
-              <p>Please check your email or Farcaster account to proceed with registration.</p>
+              <p>Your Farcaster account has been successfully funded.</p>
               <button
                 onClick={() => setShowNotification(false)}
                 className="absolute top-2 right-2 text-white hover:text-gray-200"
@@ -166,7 +213,6 @@ const DashboardScreen: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
-
       </main>
     </div>
   );
