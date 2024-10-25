@@ -4,19 +4,22 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import PaystackPayment from '@/components/PaystackPayment';
-import { FaCoins, FaSpinner, FaEnvelope, FaTimes, FaCreditCard, FaBitcoin } from 'react-icons/fa';
+import { FaCoins, FaSpinner, FaTimes, FaCreditCard } from 'react-icons/fa';
+import { SiCoinbase } from 'react-icons/si';
 import { motion, AnimatePresence } from 'framer-motion';
 import { recordTransactionOnChain } from '@/utils/contractInteractions';
 import { Checkout, CheckoutButton, CheckoutStatus } from '@coinbase/onchainkit/checkout';
 import { LifecycleStatus } from '@coinbase/onchainkit/transaction';
 
 const DashboardScreen: React.FC = () => {
+  const [userEmail, setUserEmail] = useState<string>('');
   const [transactionSuccess, setTransactionSuccess] = useState<boolean>(false);
   const [tokenBalance, setTokenBalance] = useState<number>(4);
   const [isWaiting, setIsWaiting] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(120);
   const [showNotification, setShowNotification] = useState<boolean>(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'paystack' | 'coinbase' | null>(null);
+  const [paystackError, setPaystackError] = useState<string | null>(null);
 
   useEffect(() => {
     const checkWalletConnection = async () => {
@@ -56,18 +59,35 @@ const DashboardScreen: React.FC = () => {
       return Number(newBalance.toFixed(2));
     });
     setIsWaiting(true);
+    setTransactionSuccess(true);
+    setShowNotification(true);
   };
 
   const handlePaymentClose = () => {
     console.log("Payment process closed.");
     setSelectedPaymentMethod(null);
+    setPaystackError(null);
   };
 
   const statusHandler = async (status: LifecycleStatus) => {
+    console.log('Checkout status:', status);
     const { statusName, statusData } = status;
     switch (statusName) {
       case 'success':
         console.log('Checkout successful:', statusData);
+        setTransactionSuccess(true);
+        setShowNotification(true);
+        // Update token balance here
+        if (statusData && statusData.transactionReceipts && statusData.transactionReceipts.length > 0) {
+          const receipt = statusData.transactionReceipts[0];
+          if (receipt.effectiveGasPrice && receipt.gasUsed) {
+            const amount = Number(receipt.effectiveGasPrice) * Number(receipt.gasUsed) / 1e18; // Convert from wei to ETH
+            setTokenBalance(prevBalance => {
+              const newBalance = prevBalance + amount;
+              return Number(newBalance.toFixed(2));
+            });
+          }
+        }
         break;
       case 'init':
       case 'transactionIdle':
@@ -76,10 +96,11 @@ const DashboardScreen: React.FC = () => {
         console.log('Payment status:', statusName);
         break;
       case 'error':
-        console.error('Checkout error');
+        console.error('Checkout error:', statusData);
+        // Handle error, show an error message to the user
         break;
       default:
-        console.log('Checkout initialized');
+        console.log('Unknown status:', statusName);
     }
   };
 
@@ -128,6 +149,22 @@ const DashboardScreen: React.FC = () => {
             <p className="text-4xl font-bold text-blue-600">${(tokenBalance || 0).toFixed(2)}</p>
           </div>
           
+          <div className="mb-6">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email address for Farcaster
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={userEmail}
+              onChange={(e) => setUserEmail(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              placeholder="Enter your email"
+              required
+            />
+          </div>
+          
           <h3 className="text-xl font-semibold mb-4">Select Payment Method</h3>
           <div className="grid md:grid-cols-2 gap-6">
             <PaymentOption
@@ -138,7 +175,7 @@ const DashboardScreen: React.FC = () => {
               selected={selectedPaymentMethod === 'paystack'}
             />
             <PaymentOption
-              icon={<FaBitcoin className="text-orange-500 text-2xl" />}
+              icon={<SiCoinbase className="text-orange-500 text-2xl" />}
               title="Pay with Crypto"
               description="Powered by Coinbase"
               onClick={() => setSelectedPaymentMethod('coinbase')}
@@ -146,29 +183,28 @@ const DashboardScreen: React.FC = () => {
             />
           </div>
 
-          {selectedPaymentMethod && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="mt-8"
-            >
-              {selectedPaymentMethod === 'paystack' && (
+          {selectedPaymentMethod === 'paystack' && userEmail && (
+              <div className="mt-4">
                 <PaystackPayment
-                  email="user@example.com" // You might want to get this from user context or remove if not needed
-                  amount={100} // Amount in cents
+                  email={userEmail}
+                  amount={4000} // Amount in cents
                   reference={`TRX-${new Date().getTime()}`}
                   onSuccess={handlePaymentSuccess}
                   onClose={handlePaymentClose}
                 />
-              )}
-              {selectedPaymentMethod === 'coinbase' && (
-                <Checkout productId='my-product-id' onStatus={statusHandler}>
-                  <CheckoutButton coinbaseBranded className="w-full py-3 text-lg" />
-                  <CheckoutStatus />
-                </Checkout>
-              )}
-            </motion.div>
+              </div>
+          )}
+          {selectedPaymentMethod === 'paystack' && !userEmail && (
+              <div className="mt-4 text-red-500">
+                Please enter your email address before proceeding with the payment.
+              </div>
+          )}
+          {selectedPaymentMethod === 'coinbase' && (
+            <Checkout
+              productId={process.env.NEXT_PUBLIC_COINBASE_PRODUCT_ID || ''}>
+              <CheckoutButton coinbaseBranded className="w-full py-3 text-lg" />
+              <CheckoutStatus />
+            </Checkout>
           )}
         </div>
 

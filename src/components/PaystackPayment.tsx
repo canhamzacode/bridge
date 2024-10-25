@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
 import { PaystackButton } from 'react-paystack';
 interface PaystackPaymentProps {
   email: string;
   amount: number;  // Amount in kobo (1 Naira = 100 kobo)
   reference: string;  // Unique transaction reference
-  onSuccess: () => void;
+  onSuccess: (response: any) => void;
   onClose: () => void;
 }
 
@@ -12,10 +13,19 @@ const PaystackPayment: React.FC<PaystackPaymentProps> = ({ email, amount, refere
   const [error, setError] = useState<string | null>(null);
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 'pk_live_c4c5da0f436a4370e0795c7f156e71f423d93978';
   
+  if (!publicKey) {
+    console.error('Paystack public key is not set');
+    return (
+      <div className="py-5 text-red-500">
+        Error: Paystack public key is not configured. Please contact the administrator.
+      </div>
+    );
+  }
+
   const componentProps = {
     email,
     amount,
-    currency: 'GHS', // Specify the currency (Nigerian Naira)
+    currency: 'GHS',
     metadata: {
       custom_fields: [
         {

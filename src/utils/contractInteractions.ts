@@ -1,6 +1,5 @@
-import { ethers } from 'ethers';
-
-const CONTRACT_ADDRESS = 'YOUR_DEPLOYED_CONTRACT_ADDRESS';
+import { ethers, BrowserProvider } from 'ethers';
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '';
 const CONTRACT_ABI = [
   "function recordTransaction(uint256 _amount, string memory _currency) public",
   "function getUserTransactionCount(address _user) public view returns (uint256)",
@@ -11,7 +10,7 @@ export async function recordTransactionOnChain(amount: number, currency: string)
   try {
     if (typeof window.ethereum !== 'undefined') {
       await window.ethereum.request({ method: 'eth_requestAccounts' });
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
@@ -29,8 +28,8 @@ export async function recordTransactionOnChain(amount: number, currency: string)
 export async function getUserTransactions(userAddress: string) {
   try {
     if (typeof window.ethereum !== 'undefined') {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+      const provider = new BrowserProvider(window.ethereum);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
 
       const count = await contract.getUserTransactionCount(userAddress);
       const transactions = [];
