@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { Navbar } from '@/components/Navbar'
 import React, { useEffect } from 'react'
 import { Footer, Hero, HowWeWork, WhyUs } from './components'
