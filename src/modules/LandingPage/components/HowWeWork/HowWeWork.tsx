@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react/jsx-key */
 import Image from 'next/image'
 import React from 'react'
 import HowWeWorkCard from './HowWeWorkCard'

@@ -1,12 +1,20 @@
-
-// src/app/signers/page.tsx
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState } from 'react';
 
+type SignerInfo = {
+  signer_uuid: string;
+  public_key: string;
+};
+
+type WarpcastPayload = {
+  somePayloadKey: string; // Adjust this based on your API response.
+};
+
 export default function SignersPage() {
-  const [signerInfo, setSignerInfo] = useState(null);
-  const [warpcastPayload, setWarpcastPayload] = useState(null);
+  const [signerInfo, setSignerInfo] = useState<SignerInfo | null>(null);
+  const [warpcastPayload, setWarpcastPayload] = useState<WarpcastPayload | null>(null);
   const [error, setError] = useState('');
 
   const createSigner = async () => {
@@ -14,8 +22,9 @@ export default function SignersPage() {
       const res = await fetch('/api/create-signer', {
         method: 'POST',
       });
-      const data = await res.json();
-      setSignerInfo(data);
+
+      const data: { data: SignerInfo } = await res.json();
+      setSignerInfo(data.data);
     } catch (err) {
       setError('Failed to create signer');
     }
@@ -30,12 +39,13 @@ export default function SignersPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          signer_uuid: signerInfo.data.signer_uuid,
-          public_key: signerInfo.data.public_key,
+          signer_uuid: signerInfo.signer_uuid,
+          public_key: signerInfo.public_key,
         }),
       });
-      const data = await res.json();
-      setWarpcastPayload(data);
+
+      const data: { data: WarpcastPayload } = await res.json();
+      setWarpcastPayload(data.data);
     } catch (err) {
       setError('Failed to register signer');
     }
@@ -47,9 +57,9 @@ export default function SignersPage() {
       <button className='bg-primary' onClick={createSigner}>Create Signer</button>
       <button onClick={registerSigner} disabled={!signerInfo}>Register Signer</button>
 
-      {signerInfo && <div>Signer Info: {JSON.stringify(signerInfo)}</div>}
-      {warpcastPayload && <div>Warpcast Payload: {JSON.stringify(warpcastPayload)}</div>}
-      {error && <p>{error}</p>}
+      {signerInfo && <pre>Signer Info: {JSON.stringify(signerInfo, null, 2)}</pre>}
+      {warpcastPayload && <pre>Warpcast Payload: {JSON.stringify(warpcastPayload, null, 2)}</pre>}
+      {error && <p className="text-red-500">{error}</p>}
     </div>
   );
 }
