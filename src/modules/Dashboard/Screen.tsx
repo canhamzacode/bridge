@@ -33,7 +33,7 @@ const DashboardScreen: React.FC = () => {
 
     checkWalletConnection();
   }, []);
-
+ 
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isWaiting && countdown > 0) {
