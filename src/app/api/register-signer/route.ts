@@ -2,13 +2,14 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { mnemonicToAccount } from 'viem/accounts';
 
-export default async function registerSigner(req: NextApiRequest, res: NextApiResponse) {
+export async function POST(req: NextApiRequest, res: NextApiResponse) {
   const { signer_uuid, public_key } = req.body;
   const appFid = process.env.FARCASTER_DEVELOPER_FID;
   const account = mnemonicToAccount(process.env.FARCASTER_DEVELOPER_MNEMONIC as string);
   const deadline = Math.floor(Date.now() / 1000) + 86400; // Signature valid for 1 day
 
-  const signature = await account.signTypedData({
+  const signature = await account.signTypedData(
+    {
     domain: {
       name: "Farcaster SignedKeyRequestValidator",
       version: "1",
@@ -22,6 +23,7 @@ export default async function registerSigner(req: NextApiRequest, res: NextApiRe
         { name: 'deadline', type: 'uint256' },
       ],
     },
+    
     primaryType: 'SignedKeyRequest',
     message: {
       requestFid: BigInt(appFid as string),
